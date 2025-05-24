@@ -9,15 +9,15 @@ module.exports = {
   run: async (ctx) => {
     try {
       const reply = ctx.message.reply_to_message;
-      if (!reply) return ctx.reply("❗ Kripya bot ke kisi message pe reply karo `/unsend` ke saath.");
+      if (!reply) return ctx.reply("❗ বটের ম্যাসেজ এ রিপ্লাই করো `/unsend` 🫩.");
 
       const isBot = reply.from.id === ctx.botInfo.id;
-      if (!isBot) return ctx.reply("❌ Ye message bot ka nahi hai.");
+      if (!isBot) return ctx.reply("❌ এটা বটের ম্যাসেজ না.");
 
       await ctx.deleteMessage(reply.message_id);
     } catch (err) {
       console.error("Unsend error:", err.message);
-      ctx.reply("⚠️ Message delete nahi ho paaya.");
+      ctx.reply("⚠️ মেসেজ ডিলেট হতে সমস্যা হয়েছে.");
     }
   }
 };
