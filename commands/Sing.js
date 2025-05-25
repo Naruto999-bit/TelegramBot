@@ -1,32 +1,55 @@
-handleReply: async function ({ event, api, args, handleReply }) {
-  const baseApi = (await axios.get("https://raw.githubusercontent.com/Mostakim0978/D1PT0/refs/heads/main/baseApiUrl.json")).data.api;
+const axios = require("axios");
+const { Telegraf } = require("telegraf");
+const bot = new Telegraf(process.env.BOT_TOKEN); // টোকেন লোড করা আছে, তাই পরিবেশ ভ্যারিয়েবল ধরেই নিচ্ছি
 
-  const choice = parseInt(event.body);
-  const selected = handleReply.result[choice - 1];
-  if (!selected) return api.sendMessage("❌ Invalid number.", event.threadID);
+// হেল্পার ফাংশন
+async function dipto(url) {
+  const response = await axios.get(url, { responseType: "stream" });
+  return response.data;
+}
 
-  api.sendMessage(`⏬ Downloading "${selected.title}"...`, event.threadID);
+const baseApiUrl = async () => {
+  const base = await axios.get("https://raw.githubusercontent.com/Mostakim0978/D1PT0/refs/heads/main/baseApiUrl.json");
+  return base.data.api;
+};
+
+const checkurl = /^(?:https?:\/\/)?(?:m\.|www\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))((\w|-){11})(?:\S+)?$/;
+
+bot.command("sing", async (ctx) => {
+  const args = ctx.message.text.split(" ").slice(1);
+  if (!args.length) return ctx.reply("⭕ দয়া করে একটি গান বা ইউটিউব লিংক দিন।");
+
+  const input = args.join(" ").replace("?feature=share", "");
+  const isUrl = checkurl.test(input);
 
   try {
-    const res = await axios.get(`${baseApi}/ytDl3?link=${selected.id}&format=mp3`);
-    const { title, downloadLink, size } = res.data;
+    if (isUrl) {
+      const match = input.match(checkurl);
+      const videoID = match ? match[1] : null;
+      const { data: { title, downloadLink, size } } = await axios.get(`${await baseApiUrl()}/ytDl3?link=${videoID}&format=mp3`);
 
-    if (size > 26000000) return api.sendMessage("⭕ Sorry, audio size is more than 26MB.", event.threadID);
+      if (size > 26000000) return ctx.reply("⭕ দুঃখিত, অডিও ফাইলটি ২৬MB এর বেশি।");
 
-    const path = __dirname + `/cache/${title}.mp3`;
-    const writer = fs.createWriteStream(path);
-    const response = await axios.get(downloadLink, { responseType: "stream" });
+      const audioStream = await dipto(downloadLink);
+      return ctx.replyWithAudio({ source: audioStream, filename: `${title}.mp3` }, { caption: title });
+    } else {
+      const result = (await axios.get(`${await baseApiUrl()}/ytFullSearch?songName=${input}`)).data;
+      if (!result.length) return ctx.reply(`⭕ কোনো গান পাওয়া যায়নি: ${input}`);
 
-    response.data.pipe(writer);
-    writer.on("finish", () => {
-      api.sendMessage({
-        body: title,
-        attachment: fs.createReadStream(path)
-      }, event.threadID, () => fs.unlinkSync(path));
-    });
+      const firstResult = result[0];
+      const videoID = firstResult.id;
 
+      const { data: { title, downloadLink, size } } = await axios.get(`${await baseApiUrl()}/ytDl3?link=${videoID}&format=mp3`);
+
+      if (size > 26000000) return ctx.reply("⭕ দুঃখিত, অডিও ফাইলটি ২৬MB এর বেশি।");
+
+      const audioStream = await dipto(downloadLink);
+      return ctx.replyWithAudio({ source: audioStream, filename: `${title}.mp3` }, { caption: title });
+    }
   } catch (err) {
-    console.log(err);
-    api.sendMessage("❌ Something went wrong while downloading.", event.threadID);
+    console.error(err);
+    ctx.reply("❌ সমস্যা হয়েছে: " + err.message);
   }
-}
+});
+
+bot.launch();
