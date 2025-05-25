@@ -1,55 +1,61 @@
-const axios = require("axios");
-const { Telegraf } = require("telegraf");
-const bot = new Telegraf(process.env.BOT_TOKEN); // টোকেন লোড করা আছে, তাই পরিবেশ ভ্যারিয়েবল ধরেই নিচ্ছি
+const TelegramBot = require('node-telegram-bot-api');
+const axios = require('axios');
+require('dotenv').config();  // .env থেকে টোকেন নেয়ার জন্য
 
-// হেল্পার ফাংশন
-async function dipto(url) {
-  const response = await axios.get(url, { responseType: "stream" });
-  return response.data;
-}
+const TOKEN = process.env.BOT_TOKEN;  // তোমার টোকেন .env ফাইলে BOT_TOKEN হিসেবে থাকবে
 
 const baseApiUrl = async () => {
-  const base = await axios.get("https://raw.githubusercontent.com/Mostakim0978/D1PT0/refs/heads/main/baseApiUrl.json");
+  const base = await axios.get(`https://raw.githubusercontent.com/Mostakim0978/D1PT0/refs/heads/main/baseApiUrl.json`);
   return base.data.api;
 };
 
-const checkurl = /^(?:https?:\/\/)?(?:m\.|www\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))((\w|-){11})(?:\S+)?$/;
+const bot = new TelegramBot(TOKEN, { polling: true });
 
-bot.command("sing", async (ctx) => {
-  const args = ctx.message.text.split(" ").slice(1);
-  if (!args.length) return ctx.reply("⭕ দয়া করে একটি গান বা ইউটিউব লিংক দিন।");
-
-  const input = args.join(" ").replace("?feature=share", "");
-  const isUrl = checkurl.test(input);
+bot.onText(/\/sing (.+)/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const query = match[1];
+  const checkurl = /^(?:https?:\/\/)?(?:m\.|www\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))((\w|-){11})(?:\S+)?$/;
+  const isUrl = checkurl.test(query);
 
   try {
     if (isUrl) {
-      const match = input.match(checkurl);
-      const videoID = match ? match[1] : null;
+      const matchUrl = query.match(checkurl);
+      const videoID = matchUrl ? matchUrl[1] : null;
+
       const { data: { title, downloadLink, size } } = await axios.get(`${await baseApiUrl()}/ytDl3?link=${videoID}&format=mp3`);
 
-      if (size > 26000000) return ctx.reply("⭕ দুঃখিত, অডিও ফাইলটি ২৬MB এর বেশি।");
+      if (size > 26000000) {
+        return bot.sendMessage(chatId, `⭕ Sorry, the audio size is more than 26MB.`);
+      }
 
-      const audioStream = await dipto(downloadLink);
-      return ctx.replyWithAudio({ source: audioStream, filename: `${title}.mp3` }, { caption: title });
+      const audioStream = await getStream(downloadLink);
+      return bot.sendAudio(chatId, audioStream, {}, { filename: `${title}.mp3` });
     } else {
-      const result = (await axios.get(`${await baseApiUrl()}/ytFullSearch?songName=${input}`)).data;
-      if (!result.length) return ctx.reply(`⭕ কোনো গান পাওয়া যায়নি: ${input}`);
+      const keyWord = query.replace("?feature=share", "");
+      const result = (await axios.get(`${await baseApiUrl()}/ytFullSearch?songName=${encodeURIComponent(keyWord)}`)).data;
 
-      const firstResult = result[0];
-      const videoID = firstResult.id;
+      if (result.length === 0) {
+        return bot.sendMessage(chatId, `⭕ No search results match the keyword: ${keyWord}`);
+      }
 
-      const { data: { title, downloadLink, size } } = await axios.get(`${await baseApiUrl()}/ytDl3?link=${videoID}&format=mp3`);
+      const firstSong = result[0];
+      const idvideo = firstSong.id;
 
-      if (size > 26000000) return ctx.reply("⭕ দুঃখিত, অডিও ফাইলটি ২৬MB এর বেশি।");
+      const { data: { title, downloadLink, size } } = await axios.get(`${await baseApiUrl()}/ytDl3?link=${idvideo}&format=mp3`);
 
-      const audioStream = await dipto(downloadLink);
-      return ctx.replyWithAudio({ source: audioStream, filename: `${title}.mp3` }, { caption: title });
+      if (size > 26000000) {
+        return bot.sendMessage(chatId, `⭕ Sorry, the audio size is more than 26MB.`);
+      }
+
+      const audioStream = await getStream(downloadLink);
+      return bot.sendAudio(chatId, audioStream, {}, { filename: `${title}.mp3` });
     }
-  } catch (err) {
-    console.error(err);
-    ctx.reply("❌ সমস্যা হয়েছে: " + err.message);
+  } catch (error) {
+    return bot.sendMessage(chatId, `❌ Error: ${error.message}`);
   }
 });
 
-bot.launch();
+async function getStream(url) {
+  const response = await axios.get(url, { responseType: 'stream' });
+  return response.data;
+}
