@@ -3,12 +3,20 @@ const fs = require("fs-extra");
 const path = require("path");
 
 module.exports = {
-  name: "autodl",
-  noPrefix: true, // যাতে URL দিলে অটো কাজ করে
-  run: async (ctx) => {
-    const text = ctx.message.text;
+  name: "download",
+  description: "Auto download video/photo from TikTok, Facebook, Instagram, YouTube and more",
+  usage: "<video_url>",
+  async run(ctx) {
+    const text = ctx.message.text || "";
+    const args = text.split(" ").slice(1);
 
-    const supportedPrefixes = [
+    if (args.length === 0) {
+      return ctx.reply("Please provide a video or photo URL to download.\nUsage: /download [link]");
+    }
+
+    const url = args[0].trim();
+
+    const validLinks = [
       "https://vt.tiktok.com",
       "https://www.tiktok.com/",
       "https://vm.tiktok.com",
@@ -18,44 +26,51 @@ module.exports = {
       "https://www.instagram.com/p/",
       "https://youtu.be/",
       "https://youtube.com/",
-      "https://x.com/",
       "https://twitter.com/",
+      "https://x.com/",
       "https://pin.it/"
     ];
 
-    if (!supportedPrefixes.some(prefix => text.startsWith(prefix))) return;
+    if (!validLinks.some(prefix => url.startsWith(prefix))) {
+      return ctx.reply("Unsupported or invalid URL. Please provide a valid TikTok, Facebook, Instagram, YouTube or Twitter video/photo link.");
+    }
 
     try {
-      await ctx.reply("⏳ অনুগ্রহ করে অপেক্ষা করো Baby...");
+      await ctx.reply("Processing your request, please wait...");
 
-      const apiBase = (await axios.get("https://raw.githubusercontent.com/Blankid018/D1PT0/main/baseApiUrl.json")).data.api;
-      const res = await axios.get(`${apiBase}/alldl?url=${encodeURIComponent(text)}`);
-      const data = res.data;
+      const baseApiRes = await axios.get("https://raw.githubusercontent.com/Blankid018/D1PT0/main/baseApiUrl.json");
+      const baseApiUrl = baseApiRes.data.api;
 
-      let ext = ".mp4";
-      if (data.result.includes(".jpg")) ext = ".jpg";
-      else if (data.result.includes(".jpeg")) ext = ".jpeg";
-      else if (data.result.includes(".png")) ext = ".png";
+      const response = await axios.get(`${baseApiUrl}/alldl?url=${encodeURIComponent(url)}`);
+      const data = response.data;
 
-      const filePath = path.join(__dirname, "..", "cache", `dlfile${ext}`);
-      const buffer = (await axios.get(data.result, { responseType: "arraybuffer" })).data;
-
-      await fs.ensureDir(path.dirname(filePath));
-      fs.writeFileSync(filePath, buffer);
-
-      const shortUrl = (await axios.get(`https://tinyurl.com/api-create.php?url=${data.result}`)).data;
-      const caption = `${data.cp || "তোমার ভিডিও/ছবি রেডি!"}\n🔗 ${shortUrl}`;
-
-      if (ext === ".mp4") {
-        await ctx.replyWithVideo({ source: filePath }, { caption });
-      } else {
-        await ctx.replyWithPhoto({ source: filePath }, { caption });
+      if (!data.result) {
+        return ctx.reply("Failed to retrieve media. Please try again later.");
       }
 
-      fs.unlinkSync(filePath);
+      let extension = ".mp4";
+      if (data.result.includes(".jpg")) extension = ".jpg";
+      else if (data.result.includes(".png")) extension = ".png";
+      else if (data.result.includes(".jpeg")) extension = ".jpeg";
+
+      const cacheDir = path.join(__dirname, "..", "cache");
+      await fs.ensureDir(cacheDir);
+
+      const filePath = path.join(cacheDir, `media${extension}`);
+
+      const mediaResp = await axios.get(data.result, { responseType: "arraybuffer" });
+      await fs.writeFile(filePath, mediaResp.data);
+
+      if (extension === ".mp4") {
+        await ctx.replyWithVideo({ source: filePath }, { caption: data.cp || "Here's your video!" });
+      } else {
+        await ctx.replyWithPhoto({ source: filePath }, { caption: data.cp || "Here's your photo!" });
+      }
+
+      await fs.unlink(filePath);
     } catch (err) {
-      console.error("❌ autodl error:", err.message);
-      await ctx.reply("❌ ডাউনলোড করতে সমস্যা হয়েছে:\n" + err.message);
+      console.error("Error in /download command:", err);
+      ctx.reply("Sorry, something went wrong while processing your request.");
     }
   }
 };
