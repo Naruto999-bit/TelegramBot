@@ -9,7 +9,7 @@ async function getBaseApiUrl() {
 
 module.exports = {
   name: "sing",
-  run: async (ctx) => {
+  run: async (ctx, bot) => {
     const query = ctx.message.text.split(" ").slice(1).join(" ");
     if (!query) return ctx.reply("Please provide a YouTube link or song name after /sing.");
 
@@ -20,10 +20,11 @@ module.exports = {
     await ctx.reply("🔍 Searching...");
 
     try {
+      const baseApi = await getBaseApiUrl();
+
       if (isUrl) {
         const videoID = query.match(checkUrl)[1];
-        const baseApi = await getBaseApiUrl();
-        const { data: { title, downloadLink, size } } = await axios.get(`${baseApi}/ytDl3?link=${videoID}&format=mp3`);
+        const { data: { title, downloadLink, size, thumbnail } } = await axios.get(`${baseApi}/ytDl3?link=${videoID}&format=mp3`);
 
         if (size > 26000000) return ctx.reply("⭕ Sorry, the audio size is more than 26MB.");
 
@@ -39,31 +40,31 @@ module.exports = {
 
       } else {
         // keyword search
-        const baseApi = await getBaseApiUrl();
         const res = await axios.get(`${baseApi}/ytFullSearch?songName=${encodeURIComponent(query)}`);
         const results = res.data.slice(0, 6);
 
         if (results.length === 0) return ctx.reply(`❌ No results found for: ${query}`);
 
-        let text = "🎵 Select a song by replying with a number (1-6):\n\n";
-        const songMap = {};
-
+        // Send message with thumbnails and list of songs
         for (let i = 0; i < results.length; i++) {
           const song = results[i];
-          text += `${i + 1}. ${song.title}\nChannel: ${song.channel.name}\nTime: ${song.time}\n\n`;
-          songMap[i + 1] = song;
+          // Send thumbnail + song info as caption
+          await ctx.replyWithPhoto(song.thumbnail || '', { caption: `${i + 1}. ${song.title}\nChannel: ${song.channel.name}\nTime: ${song.time}` });
         }
 
-        await ctx.reply(text);
+        await ctx.reply("🎵 Reply with a number (1-6) to select a song:");
 
-        // Set up listener for reply (one time)
-        const onReply = async (replyCtx) => {
-          if (replyCtx.message.chat.id === chatId && /^[1-6]$/.test(replyCtx.message.text)) {
-            const selected = parseInt(replyCtx.message.text);
+        const songMap = {};
+        results.forEach((song, idx) => songMap[idx + 1] = song);
+
+        // Wait for user reply for selection
+        const listener = async (replyCtx) => {
+          if (replyCtx.chat.id === chatId && /^[1-6]$/.test(replyCtx.text)) {
+            const selected = parseInt(replyCtx.text);
             const song = songMap[selected];
             if (!song) return;
 
-            bot.off("text", onReply);
+            bot.off("text", listener);
             await ctx.reply(`⏬ Downloading "${song.title}"...`);
 
             try {
@@ -87,7 +88,7 @@ module.exports = {
           }
         };
 
-        bot.on("text", onReply);
+        bot.on("text", listener);
       }
     } catch (err) {
       console.error(err);
