@@ -17,7 +17,6 @@ module.exports = {
     if (!query) return ctx.reply("দয়া করে একটি অ্যানিমে নাম লিখুন। যেমন: `/anisearch Naruto`");
 
     const modifiedQuery = `${query} anime edit`;
-    await ctx.react("✨");
 
     const videos = await fetchTikTokVideos(modifiedQuery);
 
