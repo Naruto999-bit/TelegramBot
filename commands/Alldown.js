@@ -36,7 +36,7 @@ module.exports = {
     }
 
     try {
-      await ctx.reply("Processing your request, please wait...");
+      await ctx.reply("𝗮𝗶𝗶 𝗺𝗮𝗺𝗮 𝗗𝗮𝗿𝗮 𝗗𝗶𝘁𝗮𝘀𝗵𝗶, 30 𝘀𝗲𝗰 𝗧𝗶𝗺𝗲 𝗗𝗲𝗮 ⌛");
 
       const baseApiRes = await axios.get("https://raw.githubusercontent.com/Blankid018/D1PT0/main/baseApiUrl.json");
       const baseApiUrl = baseApiRes.data.api;
