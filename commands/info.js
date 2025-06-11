@@ -13,7 +13,7 @@ module.exports = {
   credits: "Arun Kumar",
 
   run: async (ctx) => {
-    const botName = "🌊ʸᵒᵘʳ Cʜᴏᴄᴏʟᴀᴛᴇ🍭"; // Replace if dynamic
+    const botName = "ᗷOT Kᑌᑎ"; // Replace if dynamic
     const prefix = "/";
     const uptime = process.uptime();
     const hours = Math.floor(uptime / 3600);
@@ -40,6 +40,7 @@ module.exports = {
 🙈🄾🅆🄽🄴🅁 🄲🄾🄽🅃🄰🄲🅃 🄻🄸🄽🄺🅂🙈➪ 
 𝗙𝗔𝗖𝗘𝗕𝗢𝗢𝗞 🧨 https://www.facebook.com/arafatas602
 𝗜𝗡𝗦𝗧𝗔𝗚𝗥𝗔𝗠 👉 @iam_arafat_602
+𝗧𝗲𝗹𝗲𝗴𝗿𝗮𝗺 🫶 @arafatas602
 
 🌸𝗕𝗼𝘁 𝗣𝗿𝗲𝗳𝗶𝘅🌸 ${prefix}
 🥳 UPTIME: ${hours}h ${minutes}m ${seconds}s
