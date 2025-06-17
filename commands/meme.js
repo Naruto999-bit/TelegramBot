@@ -5,7 +5,7 @@ const axios = require("axios");
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const bot = new TelegramBot(TOKEN, { polling: true });
 
-// মাহমুদ API URL রিট্রিভার
+// মাহমুদ API URL রিট্রিভ
 const getMahmudApiBase = async () => {
   const res = await axios.get("https://raw.githubusercontent.com/mahmudx7/exe/main/baseApiUrl.json");
   return res.data.mahmud;
