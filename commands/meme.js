@@ -1,35 +1,24 @@
-const TelegramBot = require("node-telegram-bot-api");
 const axios = require("axios");
 
-// নিরাপদ উপায়ে টোকেন সংগ্রহ (প্রসেস এনভায়রনমেন্ট থেকে)
-const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const bot = new TelegramBot(TOKEN, { polling: true });
+module.exports = {
+  name: "meme",
+  run: async function (ctx) {
+    try {
+      const apiBase = await axios.get("https://raw.githubusercontent.com/mahmudx7/exe/main/baseApiUrl.json");
+      const apiUrl = apiBase.data.mahmud;
 
-// মাহমুদ API URL রিট্রিভ
-const getMahmudApiBase = async () => {
-  const res = await axios.get("https://raw.githubusercontent.com/mahmudx7/exe/main/baseApiUrl.json");
-  return res.data.mahmud;
-};
+      const res = await axios.get(`${apiUrl}/api/meme`);
+      const imageUrl = res.data?.imageUrl;
 
-// /meme কমান্ড হ্যান্ডলার
-bot.onText(/\/meme/, async (msg) => {
-  const chatId = msg.chat.id;
+      if (!imageUrl) {
+        return ctx.reply("😕 মিম পাওয়া যায়নি, পরে চেষ্টা করুন।");
+      }
 
-  try {
-    const apiUrl = await getMahmudApiBase();
-    const res = await axios.get(`${apiUrl}/api/meme`);
-    const imageUrl = res.data?.imageUrl;
+      await ctx.replyWithPhoto({ url: imageUrl }, { caption: "🐸 Here's your random meme!" });
 
-    if (!imageUrl) {
-      return bot.sendMessage(chatId, "😕 মিম আনতে পারিনি, একটু পরে আবার চেষ্টা করুন।");
+    } catch (err) {
+      console.error("❌ meme কমান্ডে সমস্যা:", err.message);
+      ctx.reply("❌ মিম আনতে সমস্যা হয়েছে। পরে আবার চেষ্টা করুন।");
     }
-
-    await bot.sendPhoto(chatId, imageUrl, {
-      caption: "🐸 Here's your random meme!"
-    });
-
-  } catch (err) {
-    console.error("❌ Meme আনতে সমস্যা:", err.message);
-    bot.sendMessage(chatId, "❌ সমস্যা হয়েছে। পরে আবার চেষ্টা করুন।");
   }
-});
+};
